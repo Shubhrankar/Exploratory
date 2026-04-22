@@ -34,16 +34,7 @@ def main():
         inputs = [ex["hi"] for ex in examples["translation"]]
         targets = [ex["bn"] for ex in examples["translation"]]
         
-        model_inputs = tokenizer(inputs, max_length=max_length, truncation=True)
-        
-        # Set up the tokenizer for targets
-        tokenizer.src_lang = tgt_lang
-        with tokenizer.as_target_tokenizer():
-            labels = tokenizer(targets, max_length=max_length, truncation=True)
-            
-        model_inputs["labels"] = labels["input_ids"]
-        # Reset source language for next batch
-        tokenizer.src_lang = src_lang
+        model_inputs = tokenizer(inputs, text_target=targets, max_length=max_length, truncation=True)
         return model_inputs
 
     print("Tokenizing dataset...")

@@ -9,4 +9,7 @@ torch>=2.0.0
 numpy
 sentencepiece
 protobuf
-
+nltk
+mosestokenizer
+indic-nlp-library
+IndicTransToolkit @ git+https://github.com/VarunGumma/IndicTransToolkit.git

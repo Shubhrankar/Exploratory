@@ -10,6 +10,10 @@ from transformers import (
     Seq2SeqTrainer,
     DataCollatorForSeq2Seq
 )
+try:
+    from IndicTransToolkit.processor import IndicProcessor
+except ImportError:
+    pass
 
 def main():
     base_path = "/Users/striker/Desktop/Exploratory/bengali_hindi"
@@ -26,9 +30,23 @@ def main():
     tgt_lang = "ben_Beng"
     
     print(f"Loading tokenizer and model from {model_checkpoint}...")
-    # Trust remote code in case IndicTrans2 requires custom tokenizer code
-    tokenizer = AutoTokenizer.from_pretrained(model_checkpoint, trust_remote_code=True)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_checkpoint, trust_remote_code=True)
+    try:
+        # Trust remote code in case IndicTrans2 requires custom tokenizer code
+        tokenizer = AutoTokenizer.from_pretrained(model_checkpoint, trust_remote_code=True)
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_checkpoint, trust_remote_code=True)
+    except Exception as e:
+        print(f"\n[ERROR] Failed to load {model_checkpoint}.")
+        print("This is likely a Hugging Face authentication issue (403 Forbidden).")
+        print("To fix this, please run the following command in your terminal:")
+        print("    huggingface-cli login")
+        print("And provide a valid token from your Hugging Face account (Settings > Access Tokens) that has read permissions.")
+        print(f"\nDetails: {e}")
+        return
+        
+    try:
+        ip = IndicProcessor(inference=False)
+    except NameError:
+        raise ImportError("Please install IndicTransToolkit: pip install git+https://github.com/VarunGumma/IndicTransToolkit.git")
     
     max_length = 128
     
@@ -36,10 +54,11 @@ def main():
         inputs = [ex["hi"] for ex in examples["translation"]]
         targets = [ex["bn"] for ex in examples["translation"]]
         
-        # IndicTrans2 uses different special tokens or prompts depending on the toolkit,
-        # However, for fine-tuning via Hugging Face, standard generic tokenization works.
-        # Often it requires appending language tags, but the HF checkpoint usually handles it 
-        # when using text_target or manually via tokenizer.
+        # Preprocess with IndicProcessor
+        inputs = ip.preprocess_batch(inputs, src_lang=src_lang, tgt_lang=tgt_lang)
+        # For targets, we also often preprocess to normalize the script
+        targets = ip.preprocess_batch(targets, src_lang=tgt_lang, tgt_lang=tgt_lang)
+        
         model_inputs = tokenizer(inputs, text_target=targets, max_length=max_length, truncation=True)
         return model_inputs
 

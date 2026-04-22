@@ -5,16 +5,35 @@ from datasets import load_from_disk
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from tqdm import tqdm
 
+try:
+    from IndicTransToolkit.processor import IndicProcessor
+except ImportError:
+    pass
+
 def generate_predictions(model_path, dataset, src_lang, target_lang, is_nllb=False, batch_size=16):
     print(f"\n--- Loading model from {model_path} ---")
     
+    # Initialize processor for IndicTrans2
+    ip = None
+    if not is_nllb:
+        try:
+            ip = IndicProcessor(inference=True)
+        except NameError:
+            print("Warning: IndicProcessor not defined. Did you install IndicTransToolkit?")
+
     # Load tokenizers appropriately
-    if is_nllb:
-        tokenizer = AutoTokenizer.from_pretrained(model_path, src_lang=src_lang)
-    else:
-        tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
-        
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_path, trust_remote_code=True)
+    try:
+        if is_nllb:
+            tokenizer = AutoTokenizer.from_pretrained(model_path, src_lang=src_lang)
+        else:
+            tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+            
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_path, trust_remote_code=True)
+    except Exception as e:
+        print(f"\n[ERROR] Failed to load {model_path}.")
+        print("If this is a 403 Forbidden error, please run 'huggingface-cli login' and provide your HF access token.")
+        print(f"Details: {e}")
+        return [], [], []
     
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = model.to(device)
@@ -31,7 +50,12 @@ def generate_predictions(model_path, dataset, src_lang, target_lang, is_nllb=Fal
         bengali_texts = [ex["bn"] for ex in batch["translation"]]
         
         # Tokenize source
-        inputs = tokenizer(hindi_texts, return_tensors="pt", padding=True, truncation=True, max_length=128).to(device)
+        if not is_nllb and ip is not None:
+            processed_hindi_texts = ip.preprocess_batch(hindi_texts, src_lang=src_lang, tgt_lang=target_lang)
+        else:
+            processed_hindi_texts = hindi_texts
+            
+        inputs = tokenizer(processed_hindi_texts, return_tensors="pt", padding=True, truncation=True, max_length=128).to(device)
         
         generation_kwargs = {"max_length": 128}
         if is_nllb:
@@ -44,6 +68,9 @@ def generate_predictions(model_path, dataset, src_lang, target_lang, is_nllb=Fal
             
         decoded_preds = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)
         
+        if not is_nllb and ip is not None:
+            decoded_preds = ip.postprocess_batch(decoded_preds, lang=target_lang)
+            
         predictions.extend([pred.strip() for pred in decoded_preds])
         references.extend([[ref.strip()] for ref in bengali_texts])
         sources.extend([src.strip() for src in hindi_texts])
@@ -53,6 +80,10 @@ def generate_predictions(model_path, dataset, src_lang, target_lang, is_nllb=Fal
 def calculate_metrics(predictions, references, sources, model_name):
     print(f"\nEvaluating performance for {model_name}...")
     
+    if not predictions:
+        print("No predictions to evaluate (model might have failed to load).")
+        return
+        
     # Load evaluation metrics
     sacrebleu = evaluate.load("sacrebleu")
     meteor = evaluate.load("meteor")
