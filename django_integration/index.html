@@ -214,7 +214,7 @@
 
     <header>
         <h1>NLP Lab</h1>
-        <p style="color: var(--text-muted)">Advanced Bengali to Hindi Neural Machine Translation</p>
+        <p style="color: var(--text-muted)">Advanced Hindi to Bengali Neural Machine Translation</p>
     </header>
 
     <div class="container">
@@ -224,19 +224,18 @@
             <div class="pane">
                 <div class="controls">
                     <select disabled>
-                        <option>Bengali (Source)</option>
+                        <option>Hindi (Source)</option>
                     </select>
                     <select id="model-select">
-                        <option value="ensemble">Ensemble (COMET-Kiwi Auto-Select)</option>
                         <option value="nllb">NLLB-600M (Finetuned)</option>
-                        <option value="indic">IndicTrans2-320M (Finetuned)</option>
+                        <option value="indictrans2">IndicTrans2-320M (Finetuned)</option>
                     </select>
                 </div>
-                <textarea id="source-text" placeholder="Enter Bengali text here..." style="height: 150px;"></textarea>
+                <textarea id="source-text" placeholder="Enter Hindi text here..." style="height: 150px;"></textarea>
                 
                 <div style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
-                    <label for="reference-text" style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Reference Hindi (Optional, for dynamic scores)</label>
-                    <textarea id="reference-text" placeholder="Paste ground-truth Hindi here to compute metrics..." style="height: 80px;"></textarea>
+                    <label for="reference-text" style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Reference Bengali (Optional, for scores)</label>
+                    <textarea id="reference-text" placeholder="Paste ground-truth Bengali here to compute metrics..." style="height: 80px;"></textarea>
                 </div>
             </div>
 
@@ -244,14 +243,11 @@
             <div class="pane">
                 <div class="controls">
                     <select disabled>
-                        <option>Hindi (Target)</option>
+                        <option>Bengali (Target)</option>
                     </select>
                     <div class="loader" id="loading-spinner"></div>
                 </div>
                 <textarea id="target-text" placeholder="Translation will appear here..." readonly></textarea>
-                <div style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; text-align: right;">
-                    Model Used: <span id="actual-model-used" style="color: var(--primary-glow);">--</span>
-                </div>
             </div>
         </div>
 
@@ -299,56 +295,40 @@
             document.getElementById('metric-meteor').innerText = '...';
             document.getElementById('metric-bert').innerText = '...';
             document.getElementById('metric-comet').innerText = '...';
-            document.getElementById('actual-model-used').innerText = '...';
 
             try {
-                const formData = new FormData();
-                formData.append("text", sourceText);
-                formData.append("reference", referenceText);
-                formData.append("modelChoice", modelChoice);
-
-                const response = await fetch('/translate/', {
+                const response = await fetch('/api/translate/', {
                     method: 'POST',
-                    body: formData
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: sourceText,
+                        model: modelChoice,
+                        reference: referenceText
+                    })
                 });
 
                 const data = await response.json();
                 
-                if (response.ok && !data.error) {
+                if (response.ok) {
                     targetTextArea.value = data.translation;
-                    document.getElementById('actual-model-used').innerText = data.model_used;
                     
-                    if (data.metrics) {
-                        document.getElementById('metric-bleu').innerText = data.metrics.bleu.toFixed(2);
-                        document.getElementById('metric-meteor').innerText = data.metrics.meteor.toFixed(4);
-                        document.getElementById('metric-bert').innerText = data.metrics.bertscore.toFixed(4);
-                        if(data.metrics.comet !== undefined) {
-                            document.getElementById('metric-comet').innerText = data.metrics.comet.toFixed(4);
-                        } else {
-                            document.getElementById('metric-comet').innerText = typeof data.comet_score === "number" ? data.comet_score.toFixed(4) : data.comet_score;
-                        }
+                    if (data.scores) {
+                        document.getElementById('metric-bleu').innerText = data.scores.bleu.toFixed(2);
+                        document.getElementById('metric-meteor').innerText = data.scores.meteor.toFixed(4);
+                        document.getElementById('metric-bert').innerText = data.scores.bertscore.toFixed(4);
+                        document.getElementById('metric-comet').innerText = data.scores.comet.toFixed(4);
                     } else if (referenceText) {
                         document.getElementById('metric-bleu').innerText = 'Err';
                         document.getElementById('metric-meteor').innerText = 'Err';
                         document.getElementById('metric-bert').innerText = 'Err';
                         document.getElementById('metric-comet').innerText = 'Err';
                     } else {
-                        if (data.static_metrics) {
-                            document.getElementById('metric-bleu').innerText = data.static_metrics.bleu.toFixed(2) + " (Test)";
-                            document.getElementById('metric-meteor').innerText = data.static_metrics.meteor.toFixed(4) + " (Test)";
-                            document.getElementById('metric-bert').innerText = data.static_metrics.bertscore.toFixed(4) + " (Test)";
-                            
-                            if (modelChoice === 'ensemble') {
-                                document.getElementById('metric-comet').innerText = typeof data.comet_score === "number" ? data.comet_score.toFixed(4) + " (QE)" : "N/A";
-                            } else {
-                                document.getElementById('metric-comet').innerText = data.static_metrics.comet.toFixed(4) + " (Test)";
-                            }
-                        } else {
-                            document.getElementById('metric-bleu').innerText = 'N/A';
-                            document.getElementById('metric-meteor').innerText = 'N/A';
-                            document.getElementById('metric-bert').innerText = 'N/A';
-                            document.getElementById('metric-comet').innerText = typeof data.comet_score === "number" ? data.comet_score.toFixed(4) + " (QE)" : data.comet_score;
-                        }
+                        document.getElementById('metric-bleu').innerText = 'N/A';
+                        document.getElementById('metric-meteor').innerText = 'N/A';
+                        document.getElementById('metric-bert').innerText = 'N/A';
+                        document.getElementById('metric-comet').innerText = 'N/A';
                     }
                 } else {
                     targetTextArea.value = "Error: " + (data.error || "Failed to translate");

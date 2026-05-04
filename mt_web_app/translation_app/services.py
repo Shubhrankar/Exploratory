@@ -65,16 +65,18 @@ class TranslationEnsemble:
             decoded = self.indic_ip.postprocess_batch(decoded, lang="hin_Deva")
         return decoded[0].strip()
 
-    def calculate_reference_metrics(self, prediction, reference):
+    def calculate_reference_metrics(self, prediction, reference, source_text):
         import evaluate
         sacrebleu = evaluate.load("sacrebleu")
         meteor = evaluate.load("meteor")
         bertscore = evaluate.load("bertscore")
+        comet = evaluate.load("comet")
         
         bleu = sacrebleu.compute(predictions=[prediction], references=[[reference]])["score"]
         met = meteor.compute(predictions=[prediction], references=[reference])["meteor"]
         bert = bertscore.compute(predictions=[prediction], references=[reference], lang="hi")["f1"][0]
-        return {"bleu": bleu, "meteor": met, "bertscore": bert}
+        comet_s = comet.compute(predictions=[prediction], references=[reference], sources=[source_text])["mean_score"]
+        return {"bleu": bleu, "meteor": met, "bertscore": bert, "comet": comet_s}
 
     def translate(self, text, model_choice="ensemble", reference=""):
         if not self.initialized: self.initialize()
@@ -95,7 +97,7 @@ class TranslationEnsemble:
                 
         metrics_dict = None
         if reference:
-            metrics_dict = self.calculate_reference_metrics(translation, reference)
+            metrics_dict = self.calculate_reference_metrics(translation, reference, text)
             
         return translation, model_name, score, metrics_dict
 
