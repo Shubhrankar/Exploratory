@@ -65,20 +65,38 @@ class TranslationEnsemble:
             decoded = self.indic_ip.postprocess_batch(decoded, lang="hin_Deva")
         return decoded[0].strip()
 
-    def translate(self, text, model_choice="ensemble"):
+    def calculate_reference_metrics(self, prediction, reference):
+        import evaluate
+        sacrebleu = evaluate.load("sacrebleu")
+        meteor = evaluate.load("meteor")
+        bertscore = evaluate.load("bertscore")
+        
+        bleu = sacrebleu.compute(predictions=[prediction], references=[[reference]])["score"]
+        met = meteor.compute(predictions=[prediction], references=[reference])["meteor"]
+        bert = bertscore.compute(predictions=[prediction], references=[reference], lang="hi")["f1"][0]
+        return {"bleu": bleu, "meteor": met, "bertscore": bert}
+
+    def translate(self, text, model_choice="ensemble", reference=""):
         if not self.initialized: self.initialize()
         
         if model_choice == "nllb":
-            return self.translate_nllb(text), "NLLB-600M", 0.0
+            translation, model_name, score = self.translate_nllb(text), "NLLB-600M", 0.0
+        elif model_choice == "indic":
+            translation, model_name, score = self.translate_indic(text), "IndicTrans2-320M", 0.0
+        else:
+            nllb_out = self.translate_nllb(text)
+            indic_out = self.translate_indic(text)
+            qe_data = [{"src": text, "mt": nllb_out}, {"src": text, "mt": indic_out}]
+            results = self.qe_model.predict(qe_data, batch_size=2, gpus=1 if self.device=="cuda" else 0)
+            if results.scores[0] > results.scores[1]: 
+                translation, model_name, score = nllb_out, "NLLB-600M", results.scores[0]
+            else: 
+                translation, model_name, score = indic_out, "IndicTrans2-320M", results.scores[1]
+                
+        metrics_dict = None
+        if reference:
+            metrics_dict = self.calculate_reference_metrics(translation, reference)
             
-        if model_choice == "indic":
-            return self.translate_indic(text), "IndicTrans2-320M", 0.0
-            
-        nllb_out = self.translate_nllb(text)
-        indic_out = self.translate_indic(text)
-        qe_data = [{"src": text, "mt": nllb_out}, {"src": text, "mt": indic_out}]
-        results = self.qe_model.predict(qe_data, batch_size=2, gpus=1 if self.device=="cuda" else 0)
-        if results.scores[0] > results.scores[1]: return nllb_out, "NLLB-600M", results.scores[0]
-        else: return indic_out, "IndicTrans2-320M", results.scores[1]
+        return translation, model_name, score, metrics_dict
 
 ensemble = TranslationEnsemble()

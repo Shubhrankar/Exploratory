@@ -33,23 +33,35 @@
         <div class="input-group">
             <textarea id="sourceText" placeholder="Enter Bengali text here..."></textarea>
         </div>
+        <div class="input-group">
+            <textarea id="referenceText" placeholder="Optional: Enter 'correct' Hindi reference translation for dynamic metrics..."></textarea>
+        </div>
         <button id="translateBtn" onclick="translateText()">Translate</button>
         <div class="loading" id="loadingSpinner">Processing translation... (Takes a moment on first run)</div>
         <div class="result-box" id="resultBox">
             <div class="result-text" id="translatedText"></div>
-            <div class="meta-info">Model Selected: <strong id="modelUsed"></strong> | COMET-Kiwi Score: <strong id="cometScore"></strong></div>
+            <div class="meta-info">
+                Model Selected: <strong id="modelUsed"></strong> | COMET-Kiwi Score: <strong id="cometScore"></strong>
+                <div id="dynamicMetrics" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
+                    BLEU: <strong id="bleuScore"></strong> | METEOR: <strong id="meteorScore"></strong> | BERTScore: <strong id="bertScore"></strong>
+                </div>
+            </div>
         </div>
     </div>
     <script>
         function translateText() {
             const text = document.getElementById("sourceText").value;
+            const reference = document.getElementById("referenceText").value;
             const modelChoice = document.getElementById("modelSelect").value;
             if (!text) return;
             document.getElementById("translateBtn").disabled = true;
             document.getElementById("loadingSpinner").style.display = "block";
             document.getElementById("resultBox").style.display = "none";
+            document.getElementById("dynamicMetrics").style.display = "none";
+            
             const formData = new FormData();
             formData.append("text", text);
+            formData.append("reference", reference);
             formData.append("modelChoice", modelChoice);
             fetch("/translate/", { method: "POST", body: formData })
             .then(response => response.json())
@@ -60,7 +72,15 @@
                 else {
                     document.getElementById("translatedText").innerText = data.translation;
                     document.getElementById("modelUsed").innerText = data.model_used;
-                    document.getElementById("cometScore").innerText = data.comet_score.toFixed(4);
+                    document.getElementById("cometScore").innerText = typeof data.comet_score === "number" ? data.comet_score.toFixed(4) : data.comet_score;
+                    
+                    if (data.metrics) {
+                        document.getElementById("bleuScore").innerText = data.metrics.bleu.toFixed(2);
+                        document.getElementById("meteorScore").innerText = data.metrics.meteor.toFixed(4);
+                        document.getElementById("bertScore").innerText = data.metrics.bertscore.toFixed(4);
+                        document.getElementById("dynamicMetrics").style.display = "block";
+                    }
+                    
                     document.getElementById("resultBox").style.display = "block";
                 }
             })
