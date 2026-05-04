@@ -1,0 +1,96 @@
+\documentclass[12pt,a4paper]{report}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+\geometry{
+    a4paper,
+    total={170mm,257mm},
+    left=20mm,
+    top=20mm,
+}
+
+\begin{document}
+
+\begin{titlepage}
+    \begin{center}
+        \vspace*{1cm}
+        
+        \Huge
+        \textbf{Machine Translation from Bengali to Hindi: Evaluation and Ensemble Modeling}
+        
+        \vspace{0.5cm}
+        \LARGE
+        Exploratory Project Report
+        
+        \vspace{1.5cm}
+        
+        \textbf{Shubhankar Srivastava}
+        
+        \vfill
+        
+        % IIT BHU Logo
+        \includegraphics[width=0.4\textwidth]{iit_bhu_logo.png}
+        
+        \vspace{0.8cm}
+        
+        \Large
+        Indian Institute of Technology (BHU), Varanasi\\
+        \vspace{0.5cm}
+        \today
+        
+    \end{center}
+\end{titlepage}
+
+\begin{abstract}
+This report details the evaluation and combination of two state-of-the-art machine translation models, NLLB-600M and IndicTrans2-320M, fine-tuned for translating text from Bengali (bn) to Hindi (hi). The performance of individual models is assessed using established metrics including BLEU, METEOR, BERTScore, and COMET. Furthermore, an ensemble approach utilizing the COMET-Kiwi Quality Estimation model is implemented to selectively combine the outputs of the two models, aiming to achieve optimal translation quality. 
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\chapter{Introduction}
+Machine translation between regional Indian languages presents significant challenges due to morphological complexity and limited parallel corpora. This project focuses on the Bengali to Hindi translation pair. We evaluate the performance of NLLB-600M and IndicTrans2-320M, both fine-tuned for this specific task. To leverage the strengths of each, we employ a Quality Estimation (QE) based ensemble method using COMET-Kiwi to dynamically select the best translation for each input.
+
+\chapter{Methodology}
+
+\section{Models Evaluated}
+Two pre-trained models were fine-tuned and evaluated:
+\begin{itemize}
+    \item \textbf{NLLB-600M}: A variant of Meta's No Language Left Behind model, fine-tuned specifically on Bengali-Hindi data (\texttt{nllb\_finetuned\_bn\_hi}).
+    \item \textbf{IndicTrans2-320M}: A model specifically designed for Indian languages, also fine-tuned on the same language pair (\texttt{indictrans2\_finetuned\_bn\_hi}).
+\end{itemize}
+
+\section{Ensemble Strategy}
+To improve the final translation output, we employed \textbf{COMET-Kiwi}, a Quality Estimation model. COMET-Kiwi scores the translations produced by both NLLB and IndicTrans2 without requiring a reference translation. For each source sentence, the translation with the higher COMET-Kiwi score is selected for the final combined output.
+
+\chapter{Results}
+
+\section{Individual Model Performance}
+The models were evaluated using BLEU, METEOR, BERTScore (F1 mean), and COMET metrics. As observed in Table \ref{tab:results}, NLLB-600M outperformed IndicTrans2-320M across all metrics. 
+
+\section{Ensemble Performance}
+The COMET-Kiwi based ensemble method evaluated 2,680 translation pairs. NLLB was chosen 2,589 times, while IndicTrans2 was chosen 91 times. The final combined output metrics closely mirror those of the NLLB model, reflecting its dominance in the selection process.
+
+\begin{table}[htpb]
+    \centering
+    \caption{Performance Metrics of Individual Models and the Combined Ensemble}
+    \label{tab:results}
+    \begin{tabular}{lcccc}
+        \toprule
+        \textbf{Model / Configuration} & \textbf{BLEU} & \textbf{METEOR} & \textbf{BERTScore} & \textbf{COMET} \\
+        \midrule
+        NLLB-600M (Fine-tuned) & 39.92 & 0.6488 & 0.9000 & 0.8158 \\
+        IndicTrans2-320M (Fine-tuned) & 29.24 & 0.5389 & 0.8425 & 0.6426 \\
+        \midrule
+        \textbf{Final Combined Output} & 39.89 & 0.6480 & 0.8991 & 0.8148 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\chapter{Conclusion}
+The evaluation clearly indicates that the fine-tuned NLLB-600M model provides superior translation quality for the Bengali-Hindi pair compared to IndicTrans2-320M in this specific experimental setup. The ensemble approach heavily favored NLLB outputs. Future work may involve further fine-tuning, exploring different decoding strategies, or investigating why IndicTrans2 underperformed in this context.
+
+\end{document}
