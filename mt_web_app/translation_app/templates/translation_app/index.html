@@ -42,7 +42,12 @@
             <div class="result-text" id="translatedText"></div>
             <div class="meta-info">
                 Model Selected: <strong id="modelUsed"></strong> | COMET-Kiwi Score: <strong id="cometScore"></strong>
-                <div id="dynamicMetrics" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
+                <div id="staticMetrics" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd; color: #2c3e50;">
+                    <strong>Overall Model Performance (Test Set):</strong><br>
+                    BLEU: <strong id="statBleu"></strong> | METEOR: <strong id="statMeteor"></strong> | BERTScore: <strong id="statBert"></strong> | COMET: <strong id="statComet"></strong>
+                </div>
+                <div id="dynamicMetrics" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd; color: #d35400;">
+                    <strong>Dynamic Sentence Metrics (with Reference):</strong><br>
                     BLEU: <strong id="bleuScore"></strong> | METEOR: <strong id="meteorScore"></strong> | BERTScore: <strong id="bertScore"></strong>
                 </div>
             </div>
@@ -73,6 +78,13 @@
                     document.getElementById("translatedText").innerText = data.translation;
                     document.getElementById("modelUsed").innerText = data.model_used;
                     document.getElementById("cometScore").innerText = typeof data.comet_score === "number" ? data.comet_score.toFixed(4) : data.comet_score;
+                    
+                    if (data.static_metrics) {
+                        document.getElementById("statBleu").innerText = data.static_metrics.bleu.toFixed(2);
+                        document.getElementById("statMeteor").innerText = data.static_metrics.meteor.toFixed(4);
+                        document.getElementById("statBert").innerText = data.static_metrics.bertscore.toFixed(4);
+                        document.getElementById("statComet").innerText = data.static_metrics.comet.toFixed(4);
+                    }
                     
                     if (data.metrics) {
                         document.getElementById("bleuScore").innerText = data.metrics.bleu.toFixed(2);

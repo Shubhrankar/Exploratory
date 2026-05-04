@@ -6,6 +6,12 @@ from .services import ensemble
 def index(request):
     return render(request, "translation_app/index.html")
 
+STATIC_METRICS = {
+    "nllb": {"bleu": 39.92, "meteor": 0.6488, "bertscore": 0.9000, "comet": 0.8158},
+    "indic": {"bleu": 29.24, "meteor": 0.5389, "bertscore": 0.8425, "comet": 0.6426},
+    "ensemble": {"bleu": 39.89, "meteor": 0.6480, "bertscore": 0.8991, "comet": 0.8148}
+}
+
 @csrf_exempt
 def translate_text(request):
     if request.method == "POST":
@@ -20,7 +26,8 @@ def translate_text(request):
             response_data = {
                 "translation": translation, 
                 "model_used": selected_model, 
-                "comet_score": score_display
+                "comet_score": score_display,
+                "static_metrics": STATIC_METRICS.get(model_choice, STATIC_METRICS["ensemble"])
             }
             if metrics_dict:
                 response_data["metrics"] = metrics_dict
