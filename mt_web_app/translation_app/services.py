@@ -20,7 +20,7 @@ class TranslationEnsemble:
         print("Initializing Machine Translation Ensemble...")
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
-        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         self.nllb_model_path = os.path.join(base_path, "nllb_finetuned_bn_hi", "final_model")
         if not os.path.exists(self.nllb_model_path): self.nllb_model_path = "facebook/nllb-200-distilled-600M"
         
@@ -65,8 +65,15 @@ class TranslationEnsemble:
             decoded = self.indic_ip.postprocess_batch(decoded, lang="hin_Deva")
         return decoded[0].strip()
 
-    def translate(self, text):
+    def translate(self, text, model_choice="ensemble"):
         if not self.initialized: self.initialize()
+        
+        if model_choice == "nllb":
+            return self.translate_nllb(text), "NLLB-600M", 0.0
+            
+        if model_choice == "indic":
+            return self.translate_indic(text), "IndicTrans2-320M", 0.0
+            
         nllb_out = self.translate_nllb(text)
         indic_out = self.translate_indic(text)
         qe_data = [{"src": text, "mt": nllb_out}, {"src": text, "mt": indic_out}]

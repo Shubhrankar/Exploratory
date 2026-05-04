@@ -22,6 +22,14 @@
     <div class="container">
         <h1>Bengali to Hindi Translation</h1>
         <p style="text-align:center; color:#7f8c8d;">Powered by NLLB, IndicTrans2 & COMET-Kiwi Ensemble</p>
+        <div class="input-group" style="margin-bottom: 15px;">
+            <label for="modelSelect" style="font-weight: bold; color: #2c3e50;">Choose Model:</label>
+            <select id="modelSelect" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; margin-top: 5px;">
+                <option value="ensemble">Ensemble (Auto-Select Best)</option>
+                <option value="nllb">NLLB-600M Only</option>
+                <option value="indic">IndicTrans2-320M Only</option>
+            </select>
+        </div>
         <div class="input-group">
             <textarea id="sourceText" placeholder="Enter Bengali text here..."></textarea>
         </div>
@@ -35,12 +43,14 @@
     <script>
         function translateText() {
             const text = document.getElementById("sourceText").value;
+            const modelChoice = document.getElementById("modelSelect").value;
             if (!text) return;
             document.getElementById("translateBtn").disabled = true;
             document.getElementById("loadingSpinner").style.display = "block";
             document.getElementById("resultBox").style.display = "none";
             const formData = new FormData();
             formData.append("text", text);
+            formData.append("modelChoice", modelChoice);
             fetch("/translate/", { method: "POST", body: formData })
             .then(response => response.json())
             .then(data => {

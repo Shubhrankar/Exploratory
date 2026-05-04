@@ -10,10 +10,12 @@ def index(request):
 def translate_text(request):
     if request.method == "POST":
         text = request.POST.get("text", "").strip()
+        model_choice = request.POST.get("modelChoice", "ensemble").strip()
         if not text: return JsonResponse({"error": "No text provided"})
         try:
-            translation, selected_model, score = ensemble.translate(text)
-            return JsonResponse({"translation": translation, "model_used": selected_model, "comet_score": float(score)})
+            translation, selected_model, score = ensemble.translate(text, model_choice)
+            score_display = "N/A (Skipped QE)" if score == 0.0 else float(score)
+            return JsonResponse({"translation": translation, "model_used": selected_model, "comet_score": score_display})
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
     return JsonResponse({"error": "Invalid request method"}, status=400)
