@@ -1,1 +1,7 @@
-.DS_Store
+nllb_finetuned_bn_hi/
+indictrans2_finetuned_bn_hi/
+.ipynb_checkpoints/
+__pycache__/
+*.pt
+*.bin
+*.safetensors

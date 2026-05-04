@@ -16,7 +16,7 @@ except ImportError:
     pass
 
 def main():
-    base_path = "/Users/striker/Desktop/Exploratory/bengali_hindi"
+    base_path = "./"
     dataset_path = os.path.join(base_path, "hf_dataset")
     
     if not os.path.exists(dataset_path):
@@ -26,8 +26,8 @@ def main():
     
     # Model configuration for IndicTrans2
     model_checkpoint = "ai4bharat/indictrans2-indic-indic-dist-320M"
-    src_lang = "hin_Deva"
-    tgt_lang = "ben_Beng"
+    src_lang = "ben_Beng"
+    tgt_lang = "hin_Deva"
     
     print(f"Loading tokenizer and model from {model_checkpoint}...")
     try:
@@ -51,8 +51,8 @@ def main():
     max_length = 128
     
     def preprocess_function(examples):
-        inputs = [ex["hi"] for ex in examples["translation"]]
-        targets = [ex["bn"] for ex in examples["translation"]]
+        inputs = [ex["bn"] for ex in examples["translation"]]
+        targets = [ex["hi"] for ex in examples["translation"]]
         
         # Preprocess with IndicProcessor
         inputs = ip.preprocess_batch(inputs, src_lang=src_lang, tgt_lang=tgt_lang)
@@ -71,44 +71,23 @@ def main():
     
     data_collator = DataCollatorForSeq2Seq(tokenizer, model=model)
     
-    metric = evaluate.load("sacrebleu")
-    
-    def postprocess_text(preds, labels):
-        preds = [pred.strip() for pred in preds]
-        labels = [[label.strip()] for label in labels]
-        return preds, labels
+    # Evaluation and metric computation during training is disabled to prevent
+    # a known generation bug (AttributeError: 'NoneType' object has no attribute 'shape') 
+    # specific to IndicTrans2 in HF Trainer. We use predict_with_generate=False and 
+    # will evaluate comprehensively using evaluate_models.py after training instead.
 
-    def compute_metrics(eval_preds):
-        preds, labels = eval_preds
-        if isinstance(preds, tuple):
-            preds = preds[0]
-        decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
-        
-        labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
-        decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
-        
-        decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
-        
-        result = metric.compute(predictions=decoded_preds, references=decoded_labels)
-        result = {"bleu": result["score"]}
-        
-        prediction_lens = [np.count_nonzero(pred != tokenizer.pad_token_id) for pred in preds]
-        result["gen_len"] = np.mean(prediction_lens)
-        result = {k: round(v, 4) for k, v in result.items()}
-        return result
-
-    output_dir = os.path.join(base_path, "indictrans2_finetuned_hi_bn")
+    output_dir = os.path.join(base_path, "indictrans2_finetuned_bn_hi")
     
     training_args = Seq2SeqTrainingArguments(
         output_dir=output_dir,
-        evaluation_strategy="epoch",
+        eval_strategy="epoch",
         learning_rate=2e-5,
         per_device_train_batch_size=8,
         per_device_eval_batch_size=8,
         weight_decay=0.01,
         save_total_limit=3,
         num_train_epochs=3,
-        predict_with_generate=True,
+        predict_with_generate=False, # Set to False to prevent generation crashes
         fp16=torch.cuda.is_available(), # Use FP16 if running on GPU
         push_to_hub=False,
         report_to="none"
@@ -121,7 +100,7 @@ def main():
         eval_dataset=tokenized_datasets["test"],
         tokenizer=tokenizer,
         data_collator=data_collator,
-        compute_metrics=compute_metrics,
+        # compute_metrics omitted as predict_with_generate=False
     )
     
     print("Starting training IndicTrans2...")
